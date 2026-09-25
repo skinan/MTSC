@@ -489,7 +489,7 @@ class MoEInceptionBlock(nn.Module):
 
         self.router = HybridRouter(num_experts=num_experts, d_model=d_model, k_freq=k_freq, temperature=temperature)
         self.use_sparse_routing = use_sparse_routing
-        self.dynamic_topk = RoutingSparsifier(num_experts) if use_sparse_routing else None
+        self.sparse_routing = RoutingSparsifier(num_experts) if use_sparse_routing else None
 
         self.experts = nn.ModuleList([
             InceptionExpert(d_model, num_kernels=num_kernels)
@@ -523,7 +523,7 @@ class MoEInceptionBlock(nn.Module):
 
 
         if self.use_sparse_routing:
-            expert_weights = self.dynamic_topk(
+            expert_weights = self.sparse_routing(
                 expert_weights
             )  # [B,C,W,E]
 
