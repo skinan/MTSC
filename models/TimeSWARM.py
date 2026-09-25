@@ -482,14 +482,14 @@ class MoEInceptionBlock(nn.Module):
     Each layer has its own experts (different parameters).
     """
     def __init__(self, d_model, num_experts, num_kernels=7,
-                 k_freq=1, temperature=0.8, use_dynamic_topk=True,
+                 k_freq=1, temperature=0.8, use_sparse_routing=True,
                  dropout=0.0):
         super().__init__()
         self.num_experts = num_experts
 
         self.router = HybridRouter(num_experts=num_experts, d_model=d_model, k_freq=k_freq, temperature=temperature)
-        self.use_dynamic_topk = use_dynamic_topk
-        self.dynamic_topk = RoutingSparsifier(num_experts) if use_dynamic_topk else None
+        self.use_sparse_routing = use_sparse_routing
+        self.dynamic_topk = RoutingSparsifier(num_experts) if use_sparse_routing else None
 
         self.experts = nn.ModuleList([
             InceptionExpert(d_model, num_kernels=num_kernels)
@@ -522,7 +522,7 @@ class MoEInceptionBlock(nn.Module):
             self.last_expert_usage = expert_usage.detach()
 
 
-        if self.use_dynamic_topk:
+        if self.use_sparse_routing:
             expert_weights = self.dynamic_topk(
                 expert_weights
             )  # [B,C,W,E]
@@ -569,8 +569,8 @@ class Model(nn.Module):
         self.num_moe_layers = getattr(configs, "num_moe_layers", 2) 
         self.k_freq = getattr(configs, "k_freq", 1)
         self.router_temperature = getattr(configs, "router_temperature", 0.8)
-        self.use_dynamic_topk = getattr(configs, "use_dynamic_topk", True)
-        if self.use_dynamic_topk:
+        self.use_sparse_routing = getattr(configs, "use_sparse_routing", True)
+        if self.use_sparse_routing:
             self.top_k = "sparse"
         else:
             self.top_k = "dense"
@@ -616,7 +616,7 @@ class Model(nn.Module):
                 num_kernels=self.num_kernels,
                 k_freq=self.k_freq,
                 temperature=self.router_temperature,
-                use_dynamic_topk=self.use_dynamic_topk,
+                use_sparse_routing=self.use_sparse_routing,
                 dropout=self.moe_dropout,
             )
             for _ in range(self.num_moe_layers)
